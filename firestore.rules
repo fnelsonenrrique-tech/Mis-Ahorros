@@ -1,0 +1,162 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny all reads and writes by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened global primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Domain validation helpers
+    function isValidCategoryIcon(icon) {
+      return icon in ['emergency', 'travel', 'home', 'education', 'tech', 'gift', 'general'];
+    }
+
+    function isValidColorKey(color) {
+      return color in ['emerald', 'amber', 'terracotta', 'ocean', 'plum'];
+    }
+
+    function isValidGoal(data, userId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             data.name is string &&
+             data.name.size() >= 1 &&
+             data.name.size() <= 60 &&
+             data.targetAmountCents is int &&
+             data.targetAmountCents > 0 &&
+             data.targetAmountCents <= 100000000000 &&
+             data.currentAmountCents is int &&
+             data.currentAmountCents >= 0 &&
+             data.currentAmountCents <= 100000000000 &&
+             isValidCategoryIcon(data.categoryIcon) &&
+             isValidColorKey(data.colorKey) &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    function isValidTransaction(data, userId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             isValidId(data.goalId) &&
+             data.goalName is string &&
+             data.goalName.size() >= 1 &&
+             data.goalName.size() <= 60 &&
+             data.type in ['deposit', 'withdrawal'] &&
+             data.amountCents is int &&
+             data.amountCents > 0 &&
+             data.amountCents <= 100000000000 &&
+             (!('note' in data) || (data.note is string && data.note.size() <= 120)) &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time;
+    }
+
+    match /users/{userId}/goals/{goalId} {
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) && isValidId(goalId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(goalId) &&
+                       incoming().keys().hasAll([
+                         'userId',
+                         'name',
+                         'targetAmountCents',
+                         'currentAmountCents',
+                         'categoryIcon',
+                         'colorKey',
+                         'createdAt',
+                         'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId',
+                         'name',
+                         'targetAmountCents',
+                         'currentAmountCents',
+                         'categoryIcon',
+                         'colorKey',
+                         'createdAt',
+                         'updatedAt'
+                       ]) &&
+                       isValidGoal(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(goalId) &&
+                       isValidGoal(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         // Action 1: Edit goal details
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'name',
+                           'targetAmountCents',
+                           'categoryIcon',
+                           'colorKey',
+                           'updatedAt'
+                         ]) ||
+                         // Action 2: Adjust saved balance via deposit or withdrawal
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'currentAmountCents',
+                           'updatedAt'
+                         ])
+                       );
+
+      allow delete: if isOwner(userId) && isValidId(goalId);
+    }
+
+    match /users/{userId}/transactions/{transactionId} {
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) && isValidId(transactionId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(transactionId) &&
+                       incoming().keys().hasAll([
+                         'userId',
+                         'goalId',
+                         'goalName',
+                         'type',
+                         'amountCents',
+                         'createdAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId',
+                         'goalId',
+                         'goalName',
+                         'type',
+                         'amountCents',
+                         'note',
+                         'createdAt'
+                       ]) &&
+                       isValidTransaction(incoming(), userId) &&
+                       existsAfter(/databases/$(database)/documents/users/$(userId)/goals/$(incoming().goalId));
+
+      // Transactions are immutable ledger records; only allow delete by owner (e.g., when removing a goal)
+      allow update: if false;
+      allow delete: if isOwner(userId) && isValidId(transactionId);
+    }
+  }
+}

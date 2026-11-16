@@ -1,0 +1,116 @@
+{
+  "entities": {
+    "SavingsGoal": {
+      "title": "SavingsGoal",
+      "description": "A personal savings goal owned by an authenticated user.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID matching the parent user document."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the savings goal (1 to 60 characters)."
+        },
+        "targetAmountCents": {
+          "type": "integer",
+          "description": "Target savings amount in minor currency units (cents), strictly greater than 0."
+        },
+        "currentAmountCents": {
+          "type": "integer",
+          "description": "Current accumulated savings amount in cents, >= 0."
+        },
+        "categoryIcon": {
+          "type": "string",
+          "description": "Visual category icon key for the goal.",
+          "enum": ["emergency", "travel", "home", "education", "tech", "gift", "general"]
+        },
+        "colorKey": {
+          "type": "string",
+          "description": "Visual accent color key for the goal card.",
+          "enum": ["emerald", "amber", "terracotta", "ocean", "plum"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp written via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-update timestamp written via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "targetAmountCents",
+        "currentAmountCents",
+        "categoryIcon",
+        "colorKey",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SavingsTransaction": {
+      "title": "SavingsTransaction",
+      "description": "A deposit or withdrawal movement recorded against a user's savings goal.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID matching the parent user document."
+        },
+        "goalId": {
+          "type": "string",
+          "description": "Document ID of the associated SavingsGoal under the same user."
+        },
+        "goalName": {
+          "type": "string",
+          "description": "Snapshot name of the associated savings goal at the time of the movement."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of savings movement.",
+          "enum": ["deposit", "withdrawal"]
+        },
+        "amountCents": {
+          "type": "integer",
+          "description": "Movement amount in cents, strictly greater than 0."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional short note describing the movement (0 to 120 characters)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp written via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "goalId",
+        "goalName",
+        "type",
+        "amountCents",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/goals/{goalId}": {
+      "schema": {
+        "$ref": "#/entities/SavingsGoal"
+      },
+      "description": "Per-user collection of personal savings goals."
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": {
+        "$ref": "#/entities/SavingsTransaction"
+      },
+      "description": "Per-user immutable ledger of savings deposits and withdrawals."
+    }
+  }
+}

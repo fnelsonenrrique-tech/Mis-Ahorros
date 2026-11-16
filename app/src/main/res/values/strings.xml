@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Ahorros</string>
+    <string name="auth_title">Tus ahorros, claros y sin complicaciones</string>
+    <string name="auth_subtitle">Crea metas a tu ritmo, registra cada depósito y lleva el control desde cualquier dispositivo.</string>
+    <string name="auth_button_google">Continuar con Google</string>
+    <string name="tab_goals">Metas</string>
+    <string name="tab_history">Movimientos</string>
+    <string name="new_goal">Nueva meta</string>
+    <string name="total_savings_label">Ahorro total</string>
+    <string name="deposit_action">Abonar</string>
+    <string name="withdraw_action">Retirar</string>
+    <string name="sign_out">Cerrar sesión</string>
+</resources>

@@ -1,0 +1,6 @@
+{
+  "name": "Ahorros",
+  "description": "App sencilla para gestionar metas de ahorro, depósitos y retiros con respaldo en la nube.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
